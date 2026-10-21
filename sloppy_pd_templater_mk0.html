@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOCX Generator with docxtemplater</title>
+    <!-- Load dependencies -->
+    <script src="https://unpkg.com/pizzip@3.2.0/dist/pizzip.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+     <script src="https://unpkg.com/docxtemplater@3.71.0/build/docxtemplater.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        h1 { color: #333; }
+        textarea, input[type="file"] {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        textarea { height: 200px; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background: #0056b3; }
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Slop DOCX Generator with docxtemplater, made with hate by rabochka and an angry LLM </h1>
+
+    <h2>Option 1: Upload Template + Keywords File</h2>
+    <input type="file" id="templateFile" accept=".docx" />
+    <input type="file" id="keywordsFile" accept=".json" />
+    <button onclick="generateFromFiles()">Generate DOCX Files</button>
+
+    <h2>Option 2: Enter Keywords Manually</h2>
+    <textarea id="keywordsText" placeholder='Paste JSON like: [{"organization_name": "ABC", "INN": "123"}]'></textarea>
+    <button onclick="generateFromText()">Generate DOCX Files</button>
+
+    <div id="status">Ready!</div>
+
+    <script>
+        // Check if docxtemplater is loaded
+        if (typeof docxtemplater === 'undefined') {
+            document.getElementById('status').innerText = "Error: docxtemplater not loaded!";
+            document.getElementById('status').className = "error";
+            throw new Error("docxtemplater not loaded!");
+        }
+
+        // Helper: Show status messages
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = type;
+        }
+
+        // Helper: Sanitize filename
+        function sanitizeFilename(name) {
+            return name.replace(/[\\/:*?"<>|]/g, '_').substring(0, 100);
+        }
+
+        // Helper: Load a file as ArrayBuffer or text
+        function loadFile(file, asText = false) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+                if (asText) {
+                    reader.readAsText(file);
+                } else {
+                    reader.readAsArrayBuffer(file);
+                }
+            });
+        }
+
+        // // Helper: Generate and download a DOCX file
+        // // async function generateAndDownloadDocx(templateBuffer, keywordSet) {
+        //     try {
+        //         // Load the template into JSZip
+        //         // const zip = new JSZip();
+        //         const zip = new PizZip(await file.arrayBuffer());
+        //         await zip.loadAsync(templateBuffer);
+
+        //         // Create docxtemplater instance
+        //         const doc = new docxtemplater(zip, {
+        //             parser: function(tag) {
+        //                 return {
+        //                     get: function(scope) {
+        //                         if (tag === '.') return scope;
+        //                         return scope[tag];
+        //                     }
+        //                 };
+        //             }
+        //         });
+
+        //         // Set the data
+        //         doc.setData(keywordSet);
+
+        //         // Render the document
+        //         await doc.renderAsync();
+
+        //         // Generate the DOCX file
+        //         const out = await zip.generateAsync({ type: 'blob' });
+
+        //         // Download the file
+        //         const orgName = keywordSet.organization_name || 'unknown';
+        //         const filename = `template_${sanitizeFilename(orgName)}.docx`;
+        //         saveAs(out, filename);
+
+        //         return true;
+        //     } catch (error) {
+        //         console.error(error);
+        //         showStatus(`Error generating file: ${error.message}`, 'error');
+        //         return false;
+        //     }
+        // }
+
+        async function generateAndDownloadDocx(templateBuffer, keywordSet) {
+            try {
+                // Accept an ArrayBuffer, Uint8Array, or Blob.
+                const content =
+                templateBuffer instanceof Blob
+                    ? await templateBuffer.arrayBuffer()
+                    : templateBuffer;
+
+                const zip = new PizZip(content);
+
+                const doc = new docxtemplater(zip, {
+                parser: function (tag) {
+                    return {
+                    get: function (scope) {
+                        if (tag === ".") return scope;
+                        return scope[tag];
+                    },
+                    };
+                },
+                });
+
+                await doc.renderAsync(keywordSet);
+
+                const out = doc.getZip().generate({ type: "blob" });
+
+                const orgName = keywordSet.organization_name || "unknown";
+                const filename = `template_${sanitizeFilename(orgName)}.docx`;
+                saveAs(out, filename);
+
+                return true;
+            } catch (error) {
+                console.error(error);
+                showStatus(`Error generating file: ${error.message}`, "error");
+                return false;
+            }
+            }
+
+
+        // Generate DOCX files from uploaded files
+        async function generateFromFiles() {
+            const templateInput = document.getElementById('templateFile');
+            const keywordsInput = document.getElementById('keywordsFile');
+
+            if (!templateInput.files[0] || !keywordsInput.files[0]) {
+                showStatus('Please select both a template and a keywords file!', 'error');
+                return;
+            }
+
+            showStatus('Generating DOCX files...', 'info');
+
+            try {
+                const templateFile = templateInput.files[0];
+                const keywordsFile = keywordsInput.files[0];
+
+                const templateBuffer = await loadFile(templateFile);
+                const keywordsText = await loadFile(keywordsFile, true);
+                const keywords = JSON.parse(keywordsText);
+
+                if (!Array.isArray(keywords)) {
+                    showStatus('Keywords file must be an array of objects!', 'error');
+                    return;
+                }
+
+                for (const keywordSet of keywords) {
+                    await generateAndDownloadDocx(templateBuffer, keywordSet);
+                }
+
+                showStatus(`Generated ${keywords.length} DOCX files!`, 'success');
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Generate DOCX files from text input
+        async function generateFromText() {
+            const templateInput = document.getElementById('templateFile');
+            const keywordsText = document.getElementById('keywordsText').value.trim();
+
+            if (!templateInput.files[0]) {
+                showStatus('Please select a template file!', 'error');
+                return;
+            }
+            if (!keywordsText) {
+                showStatus('Please enter keywords JSON!', 'error');
+                return;
+            }
+
+            showStatus('Generating DOCX files...', 'info');
+
+            try {
+                const templateFile = templateInput.files[0];
+                const templateBuffer = await loadFile(templateFile);
+                const keywords = JSON.parse(keywordsText);
+
+                if (!Array.isArray(keywords)) {
+                    showStatus('Keywords must be an array of objects!', 'error');
+                    return;
+                }
+
+                for (const keywordSet of keywords) {
+                    await generateAndDownloadDocx(templateBuffer, keywordSet);
+                }
+
+                showStatus(`Generated ${keywords.length} DOCX files!`, 'success');
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

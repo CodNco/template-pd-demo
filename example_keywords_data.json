@@ -1,0 +1,50 @@
+[
+  {
+    "organization_name": "Maple Bridge Ltd.",
+    "organization_INN": "7701234567",
+    "organization _OGRN": "1027700123456",
+    "INN": "7812345678",
+    "OGRN": "1037800123456",
+    "full_name": "Morgan Ellis",
+    "pass_series": "4501",
+    "pass_num": "123456",
+    "pass_given_by": "Sample Passport Office",
+    "pass_city": "Moscow",
+    "pass_date": "2018-04-12",
+    "email": "morgan.ellis@example.com",
+    "phone": "+7 900 000-00-11",
+    "date": "2026-10-21"
+  },
+  {
+    "organization_name": "Cedar Moon Studio",
+    "organization_INN": "5409876543",
+    "organization _OGRN": "1045400123456",
+    "INN": "5001234567",
+    "OGRN": "1055000123456",
+    "full_name": "Riley Parker",
+    "pass_series": "4002",
+    "pass_num": "234567",
+    "pass_given_by": "Sample District Passport Office",
+    "pass_city": "Kazan",
+    "pass_date": "2019-07-23",
+    "email": "riley.parker@example.com",
+    "phone": "+7 900 000-00-22",
+    "date": "2026-10-21"
+  },
+  {
+    "organization_name": "Silver Fern Works",
+    "organization_INN": "6678123456",
+    "organization _OGRN": "1066600123456",
+    "INN": "2309876543",
+    "OGRN": "1072300123456",
+    "full_name": "Casey Bennett",
+    "pass_series": "5003",
+    "pass_num": "345678",
+    "pass_given_by": "Sample Regional Passport Office",
+    "pass_city": "Yekaterinburg",
+    "pass_date": "2020-11-05",
+    "email": "casey.bennett@example.com",
+    "phone": "+7 900 000-00-33",
+    "date": "2026-10-21"
+  }
+]
