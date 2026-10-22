@@ -40,23 +40,315 @@
         }
         .success { background: #d4edda; color: #155724; }
         .error { background: #f8d7da; color: #721c24; }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        form label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        form input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        form button {
+            padding: 10px 20px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
-    <h1>Slop DOCX Generator with docxtemplater, made with hate by rabochka and an angry LLM </h1>
+    <h1>DOCX Generator with docxtemplater</h1>
+    <h2>1) Fill in repeated Personal Information</h2>
 
-    <h2>Option 1: Upload Template + Keywords File</h2>
+    <!-- novalidate is intentionally omitted so browser validation works -->
+    <form id="personalForm">
+
+        <!-- INN: digits only -->
+        <div class="form-group">
+            <label for="INN">INN</label>
+            <input type="text" id="INN" name="INN"
+                   inputmode="numeric" pattern="[0-9]+"
+                   title="Enter digits only" required>
+        </div>
+
+        <!-- OGRN: digits only -->
+        <div class="form-group">
+            <label for="OGRN">OGRN</label>
+            <input type="text" id="OGRN" name="OGRN"
+                   inputmode="numeric" pattern="[0-9]+"
+                   title="Enter digits only" required>
+        </div>
+
+        <!-- Full name: text -->
+        <div class="form-group">
+            <label for="full_name">Full name</label>
+            <input type="text" id="full_name" name="full_name"
+                   autocomplete="name" required>
+        </div>
+
+        <!-- Passport series: digits only -->
+        <div class="form-group">
+            <label for="pass_series">Passport series</label>
+            <input type="text" id="pass_series" name="pass_series"
+                   inputmode="numeric" pattern="[0-9]+"
+                   title="Enter digits only" required>
+        </div>
+
+        <!-- Passport number: digits only -->
+        <div class="form-group">
+            <label for="pass_num">Passport number</label>
+            <input type="text" id="pass_num" name="pass_num"
+                   inputmode="numeric" pattern="[0-9]+"
+                   title="Enter digits only" required>
+        </div>
+
+        <!-- Passport issuing authority: text -->
+        <div class="form-group">
+            <label for="pass_given_by">Passport given by</label>
+            <input type="text" id="pass_given_by"
+                   name="pass_given_by" required>
+        </div>
+
+        <!-- Passport issuing city: text -->
+        <div class="form-group">
+            <label for="pass_city">Passport city</label>
+            <input type="text" id="pass_city" name="pass_city"
+                   required>
+        </div>
+
+        <!-- Passport issue date: defaults to today's local date -->
+        <div class="form-group">
+            <label for="pass_date">Passport issue date</label>
+            <input type="date" id="pass_date" name="pass_date"
+                   required>
+        </div>
+
+        <!-- Email: browser email validation -->
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email"
+                   autocomplete="email" required>
+        </div>
+
+        <!-- Phone: international format, optional leading + -->
+        <div class="form-group">
+            <label for="phone">Phone number</label>
+            <input type="tel" id="phone" name="phone"
+                   autocomplete="tel"
+                   inputmode="tel"
+                   pattern="\+?[0-9 \(\)\-]{7,20}"
+                   title="Enter a valid phone number"
+                   required>
+        </div>
+
+        <!-- Date: current or user specified date -->
+        <div class="form-group">
+            <label for="date">Date</label>
+            <input
+                type="date"
+                id="date"
+                name="date"
+                required
+                >
+        </div>
+
+
+        <!-- Save the form data -->
+        <button type="submit">Save</button>
+
+        <!-- Clear saved data if needed -->
+        <button type="button" id="clearButton">Clear saved data</button>
+
+        <p id="status" role="status" aria-live="polite"></p>
+    </form>
+
+    <!-- First form group: optionally fill the form from JSON -->
+    <div class="form-group">
+        <label for="form_json">Paste form data (JSON, optional)</label>
+
+        <textarea
+            id="form_json"
+            rows="5"
+            placeholder='{"INN":"1234567890","full_name":"Ivan Ivanov","email":"ivan@example.com"}'
+            style="width: 100%; box-sizing: border-box;"
+        ></textarea>
+
+        <button type="button" id="fillFromJson">
+            Fill form from JSON
+        </button>
+
+        <p id="jsonStatus" role="status" aria-live="polite"></p>
+    </div>
+
+
+    <h2>2) Option 1: Upload Template + Keywords File</h2>
     <input type="file" id="templateFile" accept=".docx" />
     <input type="file" id="keywordsFile" accept=".json" />
     <button onclick="generateFromFiles()">Generate DOCX Files</button>
 
-    <h2>Option 2: Enter Keywords Manually</h2>
+    <h2>2) Option 2: Enter Keywords Manually</h2>
     <textarea id="keywordsText" placeholder='Paste JSON like: [{"organization_name": "ABC", "INN": "123"}]'></textarea>
     <button onclick="generateFromText()">Generate DOCX Files</button>
 
     <div id="status">Ready!</div>
 
     <script>
+        // Form with repeated personal information 
+         // Use a unique key for this form's saved data.
+        const STORAGE_KEY = "personalInformationForm";
+
+        // Get the form and all fields.
+        const form = document.getElementById("personalForm");
+        const status = document.getElementById("status");
+        const fields = form.querySelectorAll("input");
+        // let parsedPersonalFormData;
+
+        document.getElementById("fillFromJson").addEventListener("click", () => {
+
+        const textarea = document.getElementById("form_json");
+        const status = document.getElementById("jsonStatus");
+
+        try {
+            const textAreaFormData = JSON.parse(textarea.value);
+
+            // // Only update fields whose IDs exist in the pasted JSON.
+            // for (const [id, value] of Object.entries(dtextAreaFormDataata)) {
+            //     const input = document.getElementById(id);
+            // }
+
+            // Save form data
+            const data = getFormData();
+            fields.forEach((field) => {
+                const fieldDataFromTextArea = textAreaFormData[field.id];
+                if(fieldDataFromTextArea){
+                    field.value = fieldDataFromTextArea;
+                    data[field.id] = fieldDataFromTextArea;
+                }
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+            status.textContent = `Updated form from JSON.`;
+        } catch (error) {
+            status.textContent = `Invalid JSON: ${error.message}`;
+        }
+        })
+
+        // Format today's date as YYYY-MM-DD using local time.
+        function getToday() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, "0");
+            const day = String(now.getDate()).padStart(2, "0");
+
+            return `${year}-${month}-${day}`;
+        }
+
+        function getFormData() {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (savedData) {
+                try {
+                    const data = JSON.parse(savedData);
+                    return data;
+                } catch (error) {
+                    // Handle invalid or corrupted saved JSON.
+                    console.error("getFormData(): Could not load saved form data:", error);
+                    return {};
+                }
+            } else {
+                return {};
+            }
+        }
+        // Restore saved values, or set the date to today by default.
+        function loadFormData() {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+
+            if (savedData) {
+                try {
+                    const data = JSON.parse(savedData);
+                    console.log(data)
+
+                    fields.forEach((field) => {
+                        if (Object.hasOwn(data, field.id)) {
+                            field.value = data[field.id];
+                        }
+                    });
+                    // parsedPersonalFormData = data;
+                } catch (error) {
+                    // Handle invalid or corrupted saved JSON.
+                    console.error("Could not load saved form data:", error);
+                }
+            }
+
+            // Set today's date only when no saved date exists.
+            const dateInput = document.getElementById("date");
+
+            if (!dateInput.value) {
+                dateInput.value = getToday();
+            }
+        }
+
+        // Save all input values to browser localStorage.
+        function saveFormData() {
+            const data = {};
+
+            fields.forEach((field) => {
+                data[field.id] = field.value;
+                // console.log(field.id)
+            });
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        // Save only after browser validation succeeds.
+        form.addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            saveFormData();
+            status.textContent = "Data saved successfully in this browser.";
+        });
+
+        // Keep the values saved even if the page is refreshed or closed.
+        // This also protects changes made before pressing Save.
+        fields.forEach((field) => {
+            field.addEventListener("change", saveFormData);
+        });
+
+        // Delete stored data and reset the form.
+        document.getElementById("clearButton").addEventListener("click", function () {
+            localStorage.removeItem(STORAGE_KEY);
+            form.reset();
+
+            // Restore today's date after resetting.
+            document.getElementById("date").value = getToday();
+
+            status.textContent = "Saved data has been cleared.";
+        });
+
+        // Load previously saved data when the page opens.
+        loadFormData();
+        // END form logic
+
+        function applyDefaultsToKeywords(keywordSet) {
+            const formKeywords= getFormData()
+            return {
+                ...formKeywords,
+                ...keywordSet
+            };
+        }
+
+
+
+
+
         // Check if docxtemplater is loaded
         if (typeof docxtemplater === 'undefined') {
             document.getElementById('status').innerText = "Error: docxtemplater not loaded!";
@@ -89,48 +381,6 @@
                 }
             });
         }
-
-        // // Helper: Generate and download a DOCX file
-        // // async function generateAndDownloadDocx(templateBuffer, keywordSet) {
-        //     try {
-        //         // Load the template into JSZip
-        //         // const zip = new JSZip();
-        //         const zip = new PizZip(await file.arrayBuffer());
-        //         await zip.loadAsync(templateBuffer);
-
-        //         // Create docxtemplater instance
-        //         const doc = new docxtemplater(zip, {
-        //             parser: function(tag) {
-        //                 return {
-        //                     get: function(scope) {
-        //                         if (tag === '.') return scope;
-        //                         return scope[tag];
-        //                     }
-        //                 };
-        //             }
-        //         });
-
-        //         // Set the data
-        //         doc.setData(keywordSet);
-
-        //         // Render the document
-        //         await doc.renderAsync();
-
-        //         // Generate the DOCX file
-        //         const out = await zip.generateAsync({ type: 'blob' });
-
-        //         // Download the file
-        //         const orgName = keywordSet.organization_name || 'unknown';
-        //         const filename = `template_${sanitizeFilename(orgName)}.docx`;
-        //         saveAs(out, filename);
-
-        //         return true;
-        //     } catch (error) {
-        //         console.error(error);
-        //         showStatus(`Error generating file: ${error.message}`, 'error');
-        //         return false;
-        //     }
-        // }
 
         async function generateAndDownloadDocx(templateBuffer, keywordSet) {
             try {
@@ -196,7 +446,8 @@
                 }
 
                 for (const keywordSet of keywords) {
-                    await generateAndDownloadDocx(templateBuffer, keywordSet);
+                    const fullKeywordSet = applyDefaultsToKeywords(keywordSet);
+                    await generateAndDownloadDocx(templateBuffer, fullKeywordSet);
                 }
 
                 showStatus(`Generated ${keywords.length} DOCX files!`, 'success');
@@ -232,7 +483,8 @@
                 }
 
                 for (const keywordSet of keywords) {
-                    await generateAndDownloadDocx(templateBuffer, keywordSet);
+                    const fullKeywordSet = applyDefaultsToKeywords(keywordSet);
+                    await generateAndDownloadDocx(templateBuffer, fullKeywordSet);
                 }
 
                 showStatus(`Generated ${keywords.length} DOCX files!`, 'success');
@@ -240,6 +492,54 @@
                 showStatus(`Error: ${error.message}`, 'error');
             }
         }
+
+
+        // Helper functions
+        /**
+    /**
+     * Persist selected inputs in localStorage.
+     *
+     * @param {string[]} ids - Input element IDs to persist.
+     * @param {string} storageKey - Unique localStorage key.
+     */
+    //FIXME
+    function persistInputs(ids, storageKey = "savedInputs") {
+        console.log("persistInputs")
+        // Restore previously saved values.
+        let saved = {};
+
+        try {
+            saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        } catch {
+            saved = {};
+        }
+
+        ids.forEach(id => {
+            const input = document.getElementById(id);
+            if (!input) return;
+
+            // Restore the saved value, if available.
+            if (Object.prototype.hasOwnProperty.call(saved, id)) {
+                input.value = saved[id];
+            }
+
+            // Save all selected inputs whenever one changes.
+            input.addEventListener("input", () => {
+                const data = {};
+
+                ids.forEach(inputId => {
+                    const element = document.getElementById(inputId);
+                    if (element) {
+                        data[inputId] = element.value;
+                    }
+                });
+
+                localStorage.setItem(storageKey, JSON.stringify(data));
+            });
+        });
+    }
+
+    persistInputs(["keywordsText", "templateFile", "keywordsFile"], "savedInputs")
     </script>
 </body>
 </html>
